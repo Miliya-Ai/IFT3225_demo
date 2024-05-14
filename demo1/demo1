@@ -1,0 +1,136 @@
+#!/bin/csh -f
+
+# felipe@ift3225
+# solution partielle à la demo 1
+#
+# note: ce script pourrait necessiter la configuration de la variable d'environnement LANG
+#       ex: setenv LANG fr_CA.ISO-8859-1
+#
+# note: assumes that script scorie is installed in the same place
+# note: assumes the json header exh.json is in the same directory
+#
+# note: a good idea to try to make it work for answering questions of demo1
+#
+# note: to use this script right away, you should give it execution properties (chmod u+x demo1)
+#       and be sure to have . in your path environment variable (check it with env | grep PATH)
+#       if not, internal calls to $prog should be replaced by ./$prog
+#       as I said, just elements of a solution (that I used for accomplishing the demo)
+#       plus en demo...
+# -----------------------------------------------------------------------------------------------
+ 
+# test la ligne de commande
+if ($#argv < 1) then
+  echo 'usage $0 <target> +'
+  exit
+endif
+
+set prog = $0
+goto $1
+
+# --------
+seed:
+
+# fetch the texts from APU by HTTP GET
+# reponse à la Q3
+#
+
+mkdir -p abu
+set seed = http://abu.cnam.fr/BIB/index.html 
+foreach oeuvre (`curl $seed | grep "href" | grep cgi-bin | grep 'go\?' | sed -e 's/.*?\([^"]*\)".*/\1/g'`)
+  set o = abu/$oeuvre
+  echo get de $oeuvre into $o
+  curl -o $o "http://abu.cnam.fr/cgi-bin/donner_unformated?$oeuvre"
+end
+exit
+
+# --------
+seen:
+
+# solution possible a la Q5
+#
+# cherche les documents dans lesquels le mot $2 est vu au moins $3 fois 
+grep -cw $2 abu/* | awk -F: '$2 > '$3' {print $0}' | sort -t\: -k2,2n
+exit
+
+# --------
+scorie:
+
+# elimine l'entete d'une oeuvre specifee en argument
+# et affiche le texte  "tokenise" (decoupe en mots, mis en minuscule, les ponctuations retirees)
+# voir le script scorie pour le retrait de l'entete et des 10 premieres lignes qui ne font pas partie de l'oeuvre.
+# reponse possible a la Q6
+#
+# soit $2 cet article (pourrait tester que l'argument est specifie)
+# ex: demo1 scorie abu/gaspard2
+
+./scorie $2 | iconv -f latin1 -t UTF-8 | tr '[:punct:]' ' ' | tr '[:space:]' '\n' | grep -v '^ *$' | tr '[:upper:]' '[:lower:]' | sort | uniq -c | sort -k1,1nr 
+exit
+
+# --------
+filter:
+
+# conditions sur les mots
+# $2 = l'oeuvre abu 
+# $3 = min freq d'un mot
+# $4 = min length of a word
+# ex: demo1 filter abu/gaspard2 3 5
+
+# reponse possible a la Q7
+# note: repond aussi a la Q6, en utilisant freq et long egales a 1, puis en triant sur la premiere colonne
+
+set freq = $3
+set l = $4 
+$prog scorie $2 | awk '$1 >= '$freq'&& length($2) >= '$l' {print $0}' 
+exit
+
+# --------
+dup:
+
+# duplicate word (2nd colonne) n (1ere colonne) fois dans un flux a deux colonnes
+# le flux est ici genere par un appel a question5
+# meme options
+
+foreach line ("`./go filter $2 $3 $4`")
+   set n = `echo "$line" | awk '{print $1}'`
+   set w = `echo "$line" | awk '{print $2}'`
+   seq -f $w $n | tr '\n' ' '
+end
+exit
+
+# --------
+post:
+
+# send a post request to API https://quickchart.io/documentation/word-cloud-api/
+# 1) json header is in file ex.json
+# 2) must generate text: "...." } to end up the json object
+# 3) send a post request  
+# note: options identical to Q5
+
+# ugly, python would help (or sed)
+set o = toto.json
+cat exh.json >! $o
+set w = `$prog filter $2 $3 $4 | grep -v \, | grep -v \" | awk '{print $2}' | tr '\n' ','`
+#set w = `go question6 $2 $3 $4 | tr ' ' ','`
+echo '  "text": "'${w}'"' >> $o
+echo "}" >> $o
+
+set out = png/`basename $2`.png
+curl --insecure -X POST -H 'Content-Type: application/json' https://quickchart.io/wordcloud -d @toto.json -o $out 
+echo $out genere
+
+exit
+
+# --------
+png:
+
+# generate all png files
+# $2 = freq
+# $3 = length
+# solution to Q8
+
+mkdir -p png
+foreach in (abu/*)
+  $prog post $in $2 $3
+end
+
+exit

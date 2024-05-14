@@ -1,0 +1,17 @@
+Un solutionnaire partiel de la demo1 
+felipe@ift3225
+
+Scripts Avec lesquels j'ai recupere les textes de l'abu et ai généré des nuages de mots.
+
+Installation:
+0) creez un repertoire demo1, puis copiez-y demo1.tar.gz 
+1) dans ce repertoire, tapez: tar -zxvf demo1.tar.gz
+
+note:   si le fichier a deja ete dezippe par votre mavigateur, vous devriez avoir le fichier demo1.tar
+        que vous pouvez decompresser par la commande: tar -xvf demo1.tar
+
+2) les ressources sont dans le repertoire sol
+
+note: 
+- solution en csh (preferez bash)
+- la doc est minimale. forcez vous à faire tourner le script go. 
